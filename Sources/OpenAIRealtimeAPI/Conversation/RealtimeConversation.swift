@@ -154,7 +154,13 @@ public final class RealtimeConversation {
             break // Conversation ID tracked internally
 
         case .conversationItemCreated(let item):
-            items.append(item)
+            // Ensure user messages have at least one content slot for transcription
+            var newItem = item
+            if case .message(var message) = newItem, message.role == .user, message.content.isEmpty {
+                message.content = [.inputAudio(Item.Message.Audio())]
+                newItem = .message(message)
+            }
+            items.append(newItem)
 
         case .conversationItemDeleted(let itemId):
             items.removeAll { $0.id == itemId }
@@ -168,11 +174,20 @@ public final class RealtimeConversation {
 
         case .conversationItemInputAudioTranscriptionCompleted(let itemId, let transcript):
             updateMessageContent(itemId: itemId) { content in
-                guard content.count > 0 else { return }
-                if case .inputAudio(var audio) = content[0] {
+                // Ensure we have at least one content slot
+                if content.isEmpty {
+                    content.append(.inputAudio(Item.Message.Audio(transcript: transcript)))
+                } else if case .inputAudio(var audio) = content[0] {
                     audio.transcript = transcript
                     content[0] = .inputAudio(audio)
+                } else {
+                    // Content exists but isn't inputAudio - add inputAudio at the beginning
+                    content.insert(.inputAudio(Item.Message.Audio(transcript: transcript)), at: 0)
                 }
+            }
+
+            if debugMode {
+                print("[RealtimeConversation] User audio transcription completed: \(transcript)")
             }
 
         case .conversationItemInputAudioTranscriptionFailed(_, let error):

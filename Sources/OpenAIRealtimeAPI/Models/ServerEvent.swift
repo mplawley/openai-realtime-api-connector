@@ -164,6 +164,10 @@ extension ServerEvent {
                         itemId: itemId,
                         transcript: transcript
                     )
+                } else {
+                    print("[ServerEvent] Failed to decode input_audio_transcription.completed")
+                    print("[ServerEvent] item_id: \(json["item_id"] ?? "nil"), transcript: \(json["transcript"] ?? "nil")")
+                    return .unknown(eventType)
                 }
 
             case "conversation.item.input_audio_transcription.failed":
