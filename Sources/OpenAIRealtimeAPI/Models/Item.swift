@@ -39,6 +39,55 @@ public enum Item: Identifiable, Codable, Sendable {
                 case .inputAudio(let audio): return audio.transcript
                 }
             }
+
+            enum CodingKeys: String, CodingKey {
+                case type, text, audio, transcript
+            }
+
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                let type = try container.decode(String.self, forKey: .type)
+
+                switch type {
+                case "text":
+                    let text = try container.decode(String.self, forKey: .text)
+                    self = .text(text)
+                case "audio":
+                    let audio = try container.decodeIfPresent(Audio.self, forKey: .audio) ?? Audio()
+                    self = .audio(audio)
+                case "input_text":
+                    let text = try container.decode(String.self, forKey: .text)
+                    self = .inputText(text)
+                case "input_audio":
+                    let audio = try container.decodeIfPresent(Audio.self, forKey: .audio) ?? Audio()
+                    self = .inputAudio(audio)
+                default:
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .type,
+                        in: container,
+                        debugDescription: "Unknown content type: \(type)"
+                    )
+                }
+            }
+
+            public func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+
+                switch self {
+                case .text(let text):
+                    try container.encode("text", forKey: .type)
+                    try container.encode(text, forKey: .text)
+                case .audio(let audio):
+                    try container.encode("audio", forKey: .type)
+                    try container.encode(audio, forKey: .audio)
+                case .inputText(let text):
+                    try container.encode("input_text", forKey: .type)
+                    try container.encode(text, forKey: .text)
+                case .inputAudio(let audio):
+                    try container.encode("input_audio", forKey: .type)
+                    try container.encode(audio, forKey: .audio)
+                }
+            }
         }
 
         public struct Audio: Codable, Sendable {
