@@ -104,11 +104,14 @@ public enum ClientEvent: Codable, Sendable {
         switch self {
         case .updateSession(let update):
             let data = try encoder.encode(update)
-            var dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-            dict["type"] = "session.update"
-            dict["session"] = dict
-            dict.removeValue(forKey: "type")
-            json = ["type": "session.update", "session": dict]
+            let sessionDict = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            json = ["type": "session.update", "session": sessionDict]
+
+            // Debug: log session update
+            if let debugData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
+               let debugString = String(data: debugData, encoding: .utf8) {
+                print("[ClientEvent] Sending session.update: \(debugString)")
+            }
 
         case .appendInputAudioBuffer(let audioData):
             json = [
