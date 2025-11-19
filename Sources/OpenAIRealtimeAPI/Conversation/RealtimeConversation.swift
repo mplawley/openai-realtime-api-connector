@@ -215,15 +215,27 @@ public final class RealtimeConversation {
 
         case .inputAudioBufferSpeechStarted:
             isUserSpeaking = true
+            if debugMode {
+                print("[RealtimeConversation] User started speaking")
+            }
 
         case .inputAudioBufferSpeechStopped:
             isUserSpeaking = false
+            if debugMode {
+                print("[RealtimeConversation] User stopped speaking")
+            }
 
         case .outputAudioBufferStarted:
             isAssistantSpeaking = true
+            if debugMode {
+                print("[RealtimeConversation] Assistant started speaking")
+            }
 
         case .outputAudioBufferStopped, .outputAudioBufferCleared:
             isAssistantSpeaking = false
+            if debugMode {
+                print("[RealtimeConversation] Assistant stopped speaking")
+            }
 
         case .rateLimitsUpdated:
             break // Can be tracked if needed

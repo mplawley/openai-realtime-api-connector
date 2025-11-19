@@ -10,6 +10,7 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
 
     private var eventHandler: (@Sendable (Data) -> Void)?
     private var stateChangeHandler: (@Sendable (ConnectionState) -> Void)?
+    private var isDataChannelOpen = false
 
     public enum ConnectionState: Sendable {
         case disconnected
@@ -56,8 +57,16 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
 
         self.dataChannel = dc
 
-        // Set up audio track
-        let audioConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
+        // Set up audio track with echo cancellation
+        let audioConstraints = RTCMediaConstraints(
+            mandatoryConstraints: [
+                "googEchoCancellation": "true",
+                "googAutoGainControl": "true",
+                "googNoiseSuppression": "true",
+                "googHighpassFilter": "true"
+            ],
+            optionalConstraints: nil
+        )
         let audioSource = peerConnectionFactory.audioSource(with: audioConstraints)
         let audioTrack = peerConnectionFactory.audioTrack(with: audioSource, trackId: "audio")
         peerConnection.add(audioTrack, streamIds: ["stream"])
@@ -87,7 +96,25 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
         // Set remote description
         try await setRemoteDescription(answer)
 
+        // Wait for data channel to open
+        await waitForDataChannel()
+
         stateChangeHandler?(.connected)
+    }
+
+    /// Wait for the data channel to open
+    private func waitForDataChannel() async {
+        var attempts = 0
+        while !isDataChannelOpen && attempts < 100 {
+            try? await Task.sleep(for: .milliseconds(100))
+            attempts += 1
+        }
+
+        if !isDataChannelOpen {
+            print("[WebRTC] Warning: Data channel did not open after 10 seconds")
+        } else {
+            print("[WebRTC] Data channel ready")
+        }
     }
 
     /// Disconnect from the API
@@ -224,7 +251,29 @@ extension WebRTCManager: RTCPeerConnectionDelegate {
 }
 
 extension WebRTCManager: RTCDataChannelDelegate {
-    nonisolated public func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {}
+    nonisolated public func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
+        let state = dataChannel.readyState
+        Task {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+
+                switch state {
+                case .open:
+                    self.isDataChannelOpen = true
+                    print("[WebRTC] Data channel opened")
+                case .closed:
+                    self.isDataChannelOpen = false
+                    print("[WebRTC] Data channel closed")
+                case .connecting:
+                    print("[WebRTC] Data channel connecting")
+                case .closing:
+                    print("[WebRTC] Data channel closing")
+                @unknown default:
+                    break
+                }
+            }
+        }
+    }
 
     nonisolated public func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
         let data = buffer.data
