@@ -13,6 +13,7 @@ public enum ServerEvent: Sendable {
     case conversationItemInputAudioTranscriptionFailed(itemId: String, error: Error)
     case responseCreated(Response)
     case responseDone(Response)
+    case responseOutputItemAdded(itemId: String)
     case responseAudioTranscriptDelta(itemId: String, contentIndex: Int, delta: String)
     case responseAudioTranscriptDone(itemId: String, contentIndex: Int, transcript: String)
     case responseTextDelta(itemId: String, contentIndex: Int, delta: String)
@@ -134,6 +135,7 @@ extension ServerEvent {
                    let item = try? JSONDecoder().decode(Item.self, from: itemJson) {
                     return .conversationItemCreated(item)
                 }
+                return .unknown(eventType)
 
             case "conversation.item.deleted":
                 if let itemId = json["item_id"] as? String {
@@ -167,6 +169,16 @@ extension ServerEvent {
                 if let responseData = json["response"] as? [String: Any],
                    let response = try? decodeResponse(from: responseData) {
                     return eventType == "response.created" ? .responseCreated(response) : .responseDone(response)
+                }
+                // Fallback: if response field is missing but we have required fields at top level
+                if let id = json["response_id"] as? String ?? json["id"] as? String {
+                    let response = Response(id: id, status: nil, output: nil)
+                    return eventType == "response.created" ? .responseCreated(response) : .responseDone(response)
+                }
+
+            case "response.output_item.added":
+                if let itemId = json["item_id"] as? String {
+                    return .responseOutputItemAdded(itemId: itemId)
                 }
 
             case "response.audio_transcript.delta":
@@ -203,6 +215,7 @@ extension ServerEvent {
                 if let itemId = json["item_id"] as? String {
                     return .responseOutputItemDone(itemId: itemId)
                 }
+                return .unknown(eventType)
 
             case "input_audio_buffer.committed":
                 return .inputAudioBufferCommitted

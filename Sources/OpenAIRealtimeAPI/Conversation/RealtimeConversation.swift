@@ -181,6 +181,10 @@ public final class RealtimeConversation {
         case .responseCreated, .responseDone:
             break // Response lifecycle tracked by items
 
+        case .responseOutputItemAdded:
+            // Output item added to response
+            break
+
         case .responseAudioTranscriptDelta(let itemId, let contentIndex, let delta):
             updateMessageContent(itemId: itemId) { content in
                 guard contentIndex < content.count else { return }
