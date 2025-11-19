@@ -1,5 +1,6 @@
 import Foundation
 import WebRTC
+import AVFoundation
 
 /// Manages WebRTC peer connection and data channels for OpenAI's Realtime API
 public final class WebRTCManager: NSObject, @unchecked Sendable {
@@ -77,10 +78,30 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
         // Set delegates
         peerConnection.delegate = self
         dataChannel.delegate = self
+
+        // Configure audio session for echo cancellation (after init)
+        configureAudioSession()
     }
 
     deinit {
         RTCCleanupSSL()
+    }
+
+    private func configureAudioSession() {
+        #if os(iOS)
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            // Use voiceChat mode which has built-in echo cancellation
+            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
+            try audioSession.setActive(true)
+
+            print("[WebRTC] Audio session configured with echo cancellation")
+        } catch {
+            print("[WebRTC] Failed to configure audio session: \(error.localizedDescription)")
+        }
+        #else
+        print("[WebRTC] Audio session configuration skipped (not iOS)")
+        #endif
     }
 
     /// Connect to the OpenAI Realtime API

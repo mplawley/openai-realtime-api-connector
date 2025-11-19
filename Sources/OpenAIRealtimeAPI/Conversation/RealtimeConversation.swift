@@ -217,9 +217,14 @@ public final class RealtimeConversation {
                 content[contentIndex] = .text(text)
             }
 
-        case .responseContentPartAdded:
-            // Content parts are added incrementally
-            break
+        case .responseContentPartAdded(let itemId, let contentIndex):
+            // Add a new content part (initially empty audio with no transcript)
+            updateMessageContent(itemId: itemId) { content in
+                // Ensure we have enough slots
+                while content.count <= contentIndex {
+                    content.append(.audio(Item.Message.Audio()))
+                }
+            }
 
         case .responseContentPartDone:
             break
