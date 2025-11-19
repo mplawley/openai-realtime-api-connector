@@ -2,7 +2,6 @@ import Foundation
 import WebRTC
 
 /// Manages WebRTC peer connection and data channels for OpenAI's Realtime API
-@MainActor
 public final class WebRTCManager: NSObject, @unchecked Sendable {
     private let peerConnection: RTCPeerConnection
     private let dataChannel: RTCDataChannel
@@ -121,33 +120,25 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
     }
 
     private func createOffer() async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
             peerConnection.offer(for: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)) { sdp, error in
-                Task {
-                    await MainActor.run {
-                        if let error = error {
-                            continuation.resume(throwing: WebRTCError.failedToCreateOffer(error))
-                            return
-                        }
+                if let error = error {
+                    continuation.resume(throwing: WebRTCError.failedToCreateOffer(error))
+                    return
+                }
 
-                        guard let sdp = sdp else {
-                            continuation.resume(throwing: WebRTCError.invalidSDP)
-                            return
-                        }
+                guard let sdp = sdp else {
+                    continuation.resume(throwing: WebRTCError.invalidSDP)
+                    return
+                }
 
-                        self.peerConnection.setLocalDescription(sdp) { error in
-                            Task {
-                                await MainActor.run {
-                                    if let error = error {
-                                        continuation.resume(throwing: WebRTCError.failedToSetLocalDescription(error))
-                                        return
-                                    }
-
-                                    continuation.resume(returning: sdp.sdp)
-                                }
-                            }
-                        }
+                self.peerConnection.setLocalDescription(sdp) { error in
+                    if let error = error {
+                        continuation.resume(throwing: WebRTCError.failedToSetLocalDescription(error))
+                        return
                     }
+
+                    continuation.resume(returning: sdp.sdp)
                 }
             }
         }
@@ -186,16 +177,12 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let sessionDescription = RTCSessionDescription(type: .answer, sdp: sdp)
             peerConnection.setRemoteDescription(sessionDescription) { error in
-                Task {
-                    await MainActor.run {
-                        if let error = error {
-                            continuation.resume(throwing: WebRTCError.failedToSetRemoteDescription(error))
-                            return
-                        }
-
-                        continuation.resume()
-                    }
+                if let error = error {
+                    continuation.resume(throwing: WebRTCError.failedToSetRemoteDescription(error))
+                    return
                 }
+
+                continuation.resume()
             }
         }
     }
