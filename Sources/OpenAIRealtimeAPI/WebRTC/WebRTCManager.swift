@@ -78,9 +78,6 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
         // Set delegates
         peerConnection.delegate = self
         dataChannel.delegate = self
-
-        // Configure audio session for echo cancellation (after init)
-        configureAudioSession()
     }
 
     deinit {
@@ -91,11 +88,16 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
         #if os(iOS)
         let audioSession = AVAudioSession.sharedInstance()
         do {
-            // Use voiceChat mode which has built-in echo cancellation
-            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
-            try audioSession.setActive(true)
+            // Use videoChat mode for aggressive echo cancellation
+            // videoChat has stronger AEC than voiceChat for bidirectional real-time audio
+            try audioSession.setCategory(.playAndRecord, options: [.defaultToSpeaker])
+            try audioSession.setMode(.videoChat)
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
-            print("[WebRTC] Audio session configured with echo cancellation")
+            print("[WebRTC] Audio session configured:")
+            print("  - Mode: videoChat (aggressive echo cancellation)")
+            print("  - Category: playAndRecord")
+            print("  - Output: defaultToSpeaker")
         } catch {
             print("[WebRTC] Failed to configure audio session: \(error.localizedDescription)")
         }
@@ -119,6 +121,9 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
 
         // Wait for data channel to open
         await waitForDataChannel()
+
+        // Configure audio session AFTER connection
+        configureAudioSession()
 
         stateChangeHandler?(.connected)
     }
