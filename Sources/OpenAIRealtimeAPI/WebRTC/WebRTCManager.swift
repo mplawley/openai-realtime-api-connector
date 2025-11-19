@@ -123,25 +123,29 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
     private func createOffer() async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             peerConnection.offer(for: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)) { sdp, error in
-                Task { @MainActor in
-                    if let error = error {
-                        continuation.resume(throwing: WebRTCError.failedToCreateOffer(error))
-                        return
-                    }
+                Task {
+                    await MainActor.run {
+                        if let error = error {
+                            continuation.resume(throwing: WebRTCError.failedToCreateOffer(error))
+                            return
+                        }
 
-                    guard let sdp = sdp else {
-                        continuation.resume(throwing: WebRTCError.invalidSDP)
-                        return
-                    }
+                        guard let sdp = sdp else {
+                            continuation.resume(throwing: WebRTCError.invalidSDP)
+                            return
+                        }
 
-                    self.peerConnection.setLocalDescription(sdp) { error in
-                        Task { @MainActor in
-                            if let error = error {
-                                continuation.resume(throwing: WebRTCError.failedToSetLocalDescription(error))
-                                return
+                        self.peerConnection.setLocalDescription(sdp) { error in
+                            Task {
+                                await MainActor.run {
+                                    if let error = error {
+                                        continuation.resume(throwing: WebRTCError.failedToSetLocalDescription(error))
+                                        return
+                                    }
+
+                                    continuation.resume(returning: sdp.sdp)
+                                }
                             }
-
-                            continuation.resume(returning: sdp.sdp)
                         }
                     }
                 }
@@ -182,13 +186,15 @@ public final class WebRTCManager: NSObject, @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let sessionDescription = RTCSessionDescription(type: .answer, sdp: sdp)
             peerConnection.setRemoteDescription(sessionDescription) { error in
-                Task { @MainActor in
-                    if let error = error {
-                        continuation.resume(throwing: WebRTCError.failedToSetRemoteDescription(error))
-                        return
-                    }
+                Task {
+                    await MainActor.run {
+                        if let error = error {
+                            continuation.resume(throwing: WebRTCError.failedToSetRemoteDescription(error))
+                            return
+                        }
 
-                    continuation.resume()
+                        continuation.resume()
+                    }
                 }
             }
         }
@@ -205,16 +211,18 @@ extension WebRTCManager: RTCPeerConnectionDelegate {
     nonisolated public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
 
     nonisolated public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
-        Task { @MainActor in
-            switch newState {
-            case .connected:
-                stateChangeHandler?(.connected)
-            case .disconnected, .closed:
-                stateChangeHandler?(.disconnected)
-            case .failed:
-                stateChangeHandler?(.failed)
-            default:
-                break
+        Task {
+            await MainActor.run {
+                switch newState {
+                case .connected:
+                    stateChangeHandler?(.connected)
+                case .disconnected, .closed:
+                    stateChangeHandler?(.disconnected)
+                case .failed:
+                    stateChangeHandler?(.failed)
+                default:
+                    break
+                }
             }
         }
     }
@@ -233,8 +241,10 @@ extension WebRTCManager: RTCDataChannelDelegate {
 
     nonisolated public func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
         let data = buffer.data
-        Task { @MainActor [weak self] in
-            self?.eventHandler?(data)
+        Task {
+            await MainActor.run { [weak self] in
+                self?.eventHandler?(data)
+            }
         }
     }
 }
