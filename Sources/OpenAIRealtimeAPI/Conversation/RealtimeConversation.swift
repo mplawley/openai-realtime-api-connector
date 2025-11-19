@@ -48,7 +48,7 @@ public final class RealtimeConversation {
     }
 
     /// Connect to the OpenAI Realtime API
-    public func connect(ephemeralKey: String, model: String = "gpt-4o-realtime-preview-2024-10-01") async throws {
+    public func connect(ephemeralKey: String, model: String = "gpt-realtime") async throws {
         try await webRTCManager.connect(ephemeralKey: ephemeralKey, model: model)
     }
 
