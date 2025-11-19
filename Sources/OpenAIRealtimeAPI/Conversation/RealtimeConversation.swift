@@ -159,6 +159,13 @@ public final class RealtimeConversation {
         case .conversationItemDeleted(let itemId):
             items.removeAll { $0.id == itemId }
 
+        case .conversationItemTruncated(let itemId, _, _):
+            if debugMode {
+                print("[RealtimeConversation] Item truncated: \(itemId)")
+            }
+            // Truncation happens when user interrupts the assistant
+            // The item stays in the conversation but audio playback stops
+
         case .conversationItemInputAudioTranscriptionCompleted(let itemId, let transcript):
             updateMessageContent(itemId: itemId) { content in
                 guard content.count > 0 else { return }
@@ -212,6 +219,19 @@ public final class RealtimeConversation {
 
         case .responseContentPartDone:
             break
+
+        case .responseAudioDone:
+            // Audio streaming complete for this content part
+            break
+
+        case .responseOutputItemDone:
+            // Complete output item generated
+            break
+
+        case .inputAudioBufferCommitted:
+            if debugMode {
+                print("[RealtimeConversation] Input audio buffer committed")
+            }
 
         case .inputAudioBufferSpeechStarted:
             isUserSpeaking = true
