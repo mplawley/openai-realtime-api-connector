@@ -130,10 +130,18 @@ extension ServerEvent {
                 }
 
             case "conversation.item.created":
-                if let itemData = json["item"] as? [String: Any],
-                   let itemJson = try? JSONSerialization.data(withJSONObject: itemData),
-                   let item = try? JSONDecoder().decode(Item.self, from: itemJson) {
-                    return .conversationItemCreated(item)
+                if let itemData = json["item"] as? [String: Any] {
+                    do {
+                        let itemJson = try JSONSerialization.data(withJSONObject: itemData)
+                        let item = try JSONDecoder().decode(Item.self, from: itemJson)
+                        return .conversationItemCreated(item)
+                    } catch {
+                        print("[ServerEvent] Failed to decode conversation.item.created: \(error)")
+                        if let prettyData = try? JSONSerialization.data(withJSONObject: itemData, options: .prettyPrinted),
+                           let jsonString = String(data: prettyData, encoding: .utf8) {
+                            print("[ServerEvent] Item JSON: \(jsonString)")
+                        }
+                    }
                 }
                 return .unknown(eventType)
 
