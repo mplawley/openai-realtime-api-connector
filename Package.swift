@@ -5,23 +5,30 @@ import PackageDescription
 
 let package = Package(
     name: "openai-realtime-api-connector",
+    platforms: [
+        .iOS(.v17),
+        .macOS(.v14)
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "openai-realtime-api-connector",
-            targets: ["openai-realtime-api-connector"]),
+            name: "OpenAIRealtimeAPI",
+            targets: ["OpenAIRealtimeAPI"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/webrtc-sdk/webrtc", branch: "main")
+        .package(url: "https://github.com/stasel/WebRTC.git", from: "125.0.0")
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "openai-realtime-api-connector"),
+            name: "OpenAIRealtimeAPI",
+            dependencies: [
+                .product(name: "WebRTC", package: "WebRTC")
+            ],
+            path: "Sources/OpenAIRealtimeAPI"
+        ),
         .testTarget(
-            name: "openai-realtime-api-connectorTests",
-            dependencies: ["openai-realtime-api-connector"]
+            name: "OpenAIRealtimeAPITests",
+            dependencies: ["OpenAIRealtimeAPI"],
+            path: "Tests/OpenAIRealtimeAPITests"
         ),
     ]
 )
