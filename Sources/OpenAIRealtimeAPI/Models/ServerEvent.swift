@@ -8,6 +8,7 @@ public enum ServerEvent: Sendable {
     case conversationCreated(String)
     case conversationItemCreated(Item)
     case conversationItemDeleted(String)
+    case conversationItemTruncated(itemId: String, contentIndex: Int, audioEndMs: Int)
     case conversationItemInputAudioTranscriptionCompleted(itemId: String, transcript: String)
     case conversationItemInputAudioTranscriptionFailed(itemId: String, error: Error)
     case responseCreated(Response)
@@ -18,6 +19,9 @@ public enum ServerEvent: Sendable {
     case responseTextDone(itemId: String, contentIndex: Int, text: String)
     case responseContentPartAdded(itemId: String, contentIndex: Int)
     case responseContentPartDone(itemId: String, contentIndex: Int)
+    case responseAudioDone(itemId: String, contentIndex: Int)
+    case responseOutputItemDone(itemId: String)
+    case inputAudioBufferCommitted
     case inputAudioBufferSpeechStarted
     case inputAudioBufferSpeechStopped
     case outputAudioBufferStarted
@@ -136,6 +140,13 @@ extension ServerEvent {
                     return .conversationItemDeleted(itemId)
                 }
 
+            case "conversation.item.truncated":
+                if let itemId = json["item_id"] as? String,
+                   let contentIndex = json["content_index"] as? Int,
+                   let audioEndMs = json["audio_end_ms"] as? Int {
+                    return .conversationItemTruncated(itemId: itemId, contentIndex: contentIndex, audioEndMs: audioEndMs)
+                }
+
             case "conversation.item.input_audio_transcription.completed":
                 if let itemId = json["item_id"] as? String,
                    let transcript = json["transcript"] as? String {
@@ -181,6 +192,20 @@ extension ServerEvent {
                    let contentIndex = json["content_index"] as? Int {
                     return .responseContentPartDone(itemId: itemId, contentIndex: contentIndex)
                 }
+
+            case "response.audio.done":
+                if let itemId = json["item_id"] as? String,
+                   let contentIndex = json["content_index"] as? Int {
+                    return .responseAudioDone(itemId: itemId, contentIndex: contentIndex)
+                }
+
+            case "response.output_item.done":
+                if let itemId = json["item_id"] as? String {
+                    return .responseOutputItemDone(itemId: itemId)
+                }
+
+            case "input_audio_buffer.committed":
+                return .inputAudioBufferCommitted
 
             case "input_audio_buffer.speech_started":
                 return .inputAudioBufferSpeechStarted
