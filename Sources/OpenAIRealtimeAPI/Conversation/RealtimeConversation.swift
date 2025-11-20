@@ -30,6 +30,12 @@ public final class RealtimeConversation {
     /// Debugging output enabled
     public var debugMode = false
 
+    /// Whether push-to-talk mode is enabled
+    public private(set) var isPushToTalkEnabled = false
+
+    /// Whether the user is currently holding down the talk button (push-to-talk mode)
+    public private(set) var isTalking = false
+
     /// Only the message items from the conversation
     public var messages: [Item.Message] {
         items.compactMap {
@@ -62,6 +68,59 @@ public final class RealtimeConversation {
     /// Disconnect from the API
     public func disconnect() {
         webRTCManager.disconnect()
+    }
+
+    /// Enable or disable push-to-talk mode
+    /// - Parameter enabled: true to require manual button press to talk, false for automatic VAD
+    public func setPushToTalkEnabled(_ enabled: Bool) {
+        isPushToTalkEnabled = enabled
+
+        // If disabling PTT while talking, stop talking
+        if !enabled && isTalking {
+            stopTalking()
+        }
+    }
+
+    /// Start recording user input (for push-to-talk mode)
+    /// Call this when user presses and holds the talk button
+    public func startTalking() {
+        guard isPushToTalkEnabled else {
+            print("[RealtimeConversation] startTalking() called but push-to-talk is not enabled")
+            return
+        }
+
+        isTalking = true
+
+        if debugMode {
+            print("[RealtimeConversation] User started talking (push-to-talk)")
+        }
+
+        // Note: Audio is always being captured by WebRTC, we just need to ensure
+        // the session is configured to not auto-respond until we commit the audio
+    }
+
+    /// Stop recording and send user input (for push-to-talk mode)
+    /// Call this when user releases the talk button
+    public func stopTalking() {
+        guard isPushToTalkEnabled else {
+            print("[RealtimeConversation] stopTalking() called but push-to-talk is not enabled")
+            return
+        }
+
+        guard isTalking else { return }
+
+        isTalking = false
+
+        if debugMode {
+            print("[RealtimeConversation] User stopped talking (push-to-talk), committing audio")
+        }
+
+        // Commit the audio buffer to send it to the server
+        do {
+            try webRTCManager.send(event: .commitInputAudioBuffer)
+        } catch {
+            print("[RealtimeConversation] Failed to commit audio buffer: \(error.localizedDescription)")
+        }
     }
 
     /// Update the session configuration
