@@ -13,6 +13,7 @@ public enum ClientEvent: Codable, Sendable {
         public var instructions: String?
         public var voice: String?
         public var inputAudioTranscription: InputAudioTranscription?
+        public var inputAudioNoiseReduction: InputAudioNoiseReduction?
         public var turnDetection: TurnDetection?
 
         public struct InputAudioTranscription: Codable, Sendable {
@@ -22,6 +23,24 @@ public enum ClientEvent: Codable, Sendable {
             public init(model: String? = nil, language: String? = nil) {
                 self.model = model
                 self.language = language
+            }
+        }
+
+        public struct InputAudioNoiseReduction: Codable, Sendable {
+            public var type: String
+
+            public init(type: String) {
+                self.type = type
+            }
+
+            /// For close-talking microphones such as headphones
+            public static var nearField: InputAudioNoiseReduction {
+                InputAudioNoiseReduction(type: "near_field")
+            }
+
+            /// For far-field microphones such as laptop or conference room microphones
+            public static var farField: InputAudioNoiseReduction {
+                InputAudioNoiseReduction(type: "far_field")
             }
         }
 
@@ -74,11 +93,13 @@ public enum ClientEvent: Codable, Sendable {
             instructions: String? = nil,
             voice: String? = nil,
             inputAudioTranscription: InputAudioTranscription? = nil,
+            inputAudioNoiseReduction: InputAudioNoiseReduction? = nil,
             turnDetection: TurnDetection? = nil
         ) {
             self.instructions = instructions
             self.voice = voice
             self.inputAudioTranscription = inputAudioTranscription
+            self.inputAudioNoiseReduction = inputAudioNoiseReduction
             self.turnDetection = turnDetection
         }
     }
