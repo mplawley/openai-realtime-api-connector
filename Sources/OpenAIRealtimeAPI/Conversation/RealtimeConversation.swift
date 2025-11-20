@@ -47,6 +47,7 @@ public final class RealtimeConversation {
     }
 
     private let webRTCManager: WebRTCManager
+    private var bufferClearTask: Task<Void, Never>?
 
     public init() {
         self.webRTCManager = WebRTCManager()
@@ -67,6 +68,7 @@ public final class RealtimeConversation {
 
     /// Disconnect from the API
     public func disconnect() {
+        stopBufferClearTask()
         webRTCManager.disconnect()
     }
 
@@ -75,10 +77,51 @@ public final class RealtimeConversation {
     public func setPushToTalkEnabled(_ enabled: Bool) {
         isPushToTalkEnabled = enabled
 
-        // If disabling PTT while talking, stop talking
-        if !enabled && isTalking {
-            stopTalking()
+        if enabled {
+            // Start periodic buffer clearing when push-to-talk is enabled
+            startBufferClearTask()
+        } else {
+            // Stop buffer clearing when push-to-talk is disabled
+            stopBufferClearTask()
+
+            // If disabling PTT while talking, stop talking
+            if isTalking {
+                stopTalking()
+            }
         }
+    }
+
+    /// Start a background task that periodically clears the audio buffer when not talking
+    private func startBufferClearTask() {
+        // Cancel any existing task
+        stopBufferClearTask()
+
+        bufferClearTask = Task { @MainActor in
+            while !Task.isCancelled && isPushToTalkEnabled {
+                // Only clear if not currently talking
+                if !isTalking {
+                    do {
+                        try webRTCManager.send(event: .clearInputAudioBuffer)
+                        if debugMode {
+                            print("[RealtimeConversation] Cleared audio buffer (push-to-talk idle)")
+                        }
+                    } catch {
+                        if debugMode {
+                            print("[RealtimeConversation] Failed to clear audio buffer: \(error.localizedDescription)")
+                        }
+                    }
+                }
+
+                // Clear buffer every 100ms when not talking
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+    }
+
+    /// Stop the buffer clearing task
+    private func stopBufferClearTask() {
+        bufferClearTask?.cancel()
+        bufferClearTask = nil
     }
 
     /// Start recording user input (for push-to-talk mode)
@@ -95,8 +138,9 @@ public final class RealtimeConversation {
             print("[RealtimeConversation] User started talking (push-to-talk)")
         }
 
-        // Note: Audio is always being captured by WebRTC, we just need to ensure
-        // the session is configured to not auto-respond until we commit the audio
+        // Note: Audio is always being captured by WebRTC. When isTalking = true,
+        // the buffer clear task stops clearing the buffer, allowing audio to accumulate.
+        // When the user releases the button, stopTalking() commits the buffer.
     }
 
     /// Stop recording and send user input (for push-to-talk mode)
@@ -314,6 +358,11 @@ public final class RealtimeConversation {
         case .inputAudioBufferCommitted:
             if debugMode {
                 print("[RealtimeConversation] Input audio buffer committed")
+            }
+
+        case .inputAudioBufferCleared:
+            if debugMode {
+                print("[RealtimeConversation] Input audio buffer cleared")
             }
 
         case .inputAudioBufferSpeechStarted:
