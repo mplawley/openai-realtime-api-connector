@@ -5,6 +5,7 @@ public enum ClientEvent: Codable, Sendable {
     case updateSession(SessionUpdate)
     case appendInputAudioBuffer(Data)
     case commitInputAudioBuffer
+    case clearInputAudioBuffer
     case createResponse(ResponseConfig?)
     case truncateResponse(String, Int)
     case cancelResponse(String)
@@ -87,6 +88,11 @@ public enum ClientEvent: Codable, Sendable {
                     createResponse: createResponse
                 )
             }
+
+            /// Disable automatic turn detection (requires manual createResponse calls)
+            public static var disabled: TurnDetection {
+                TurnDetection(type: "none")
+            }
         }
 
         public init(
@@ -142,6 +148,9 @@ public enum ClientEvent: Codable, Sendable {
 
         case .commitInputAudioBuffer:
             json = ["type": "input_audio_buffer.commit"]
+
+        case .clearInputAudioBuffer:
+            json = ["type": "input_audio_buffer.clear"]
 
         case .createResponse(let config):
             var dict: [String: Any] = ["type": "response.create"]

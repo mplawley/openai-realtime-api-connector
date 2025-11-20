@@ -23,6 +23,7 @@ public enum ServerEvent: Sendable {
     case responseAudioDone(itemId: String, contentIndex: Int)
     case responseOutputItemDone(itemId: String)
     case inputAudioBufferCommitted
+    case inputAudioBufferCleared
     case inputAudioBufferSpeechStarted
     case inputAudioBufferSpeechStopped
     case outputAudioBufferStarted
@@ -231,6 +232,9 @@ extension ServerEvent {
 
             case "input_audio_buffer.committed":
                 return .inputAudioBufferCommitted
+
+            case "input_audio_buffer.cleared":
+                return .inputAudioBufferCleared
 
             case "input_audio_buffer.speech_started":
                 return .inputAudioBufferSpeechStarted
