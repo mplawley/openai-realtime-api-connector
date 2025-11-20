@@ -156,14 +156,16 @@ public final class RealtimeConversation {
         isTalking = false
 
         if debugMode {
-            print("[RealtimeConversation] User stopped talking (push-to-talk), committing audio")
+            print("[RealtimeConversation] User stopped talking (push-to-talk), committing audio and creating response")
         }
 
-        // Commit the audio buffer to send it to the server
+        // Commit the audio buffer and create a response
+        // When turn detection is disabled, we must explicitly call createResponse()
         do {
             try webRTCManager.send(event: .commitInputAudioBuffer)
+            try webRTCManager.send(event: .createResponse(nil))
         } catch {
-            print("[RealtimeConversation] Failed to commit audio buffer: \(error.localizedDescription)")
+            print("[RealtimeConversation] Failed to commit audio buffer or create response: \(error.localizedDescription)")
         }
     }
 

@@ -88,6 +88,11 @@ public enum ClientEvent: Codable, Sendable {
                     createResponse: createResponse
                 )
             }
+
+            /// Disable automatic turn detection (requires manual createResponse calls)
+            public static var disabled: TurnDetection {
+                TurnDetection(type: "none")
+            }
         }
 
         public init(
